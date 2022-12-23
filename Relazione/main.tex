@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass{report}
 
 % Language setting
 % Replace `english' with e.g. `spanish' to change the document language
@@ -8,7 +8,26 @@
 % Replace `letterpaper' with`a4paper' for UK/EU standard size
 \usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 
+%Code package
+\usepackage{listings}
+\lstdefinestyle{mystyle}{
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
 % Useful packages
+\usepackage[export]{adjustbox}
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
@@ -19,10 +38,10 @@
 \begin{document}
 \maketitle
 
-\section{Sommario dei dati utilizzati}
-\subsection{Titoli}
+\chapter{Sommario dei dati utilizzati}
+\section{Titoli}
 I titoli scelti per questo progetto sono i seguenti:
-\vfill
+
 \noindent Settore tecnologico
 
 Netflix, Inc. (\textbf{NFLX})
@@ -47,95 +66,113 @@ PepsiCo, Inc. (\textbf{PEP})
 
 Coca-Cola e PepsiCo sono stati scelti in quanto concorrenti allo stesso mercato e in quando non hanno subito un calo dopo il covid-19 e inoltre, il loro andamento nel mercato sembra essere costante in rialzo.
 
-Your introduction goes here! Simply start writing your document and use the Recompile button to view the updated PDF preview. Examples of commonly used commands and features are listed below, to help you get started.
+\section{Scaricare i dati}
+Per prima cosa importiamo le librerie che ci serviranno in questo progetto:
+\begin{lstlisting}[language=Python]
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import yfinance as yf
+\end{lstlisting}
+Procediamo al dowload dei dati tramite \lstinline{yfinance.download()}
+\begin{lstlisting}[language=Python]
+    start = "2012-11-30"
+    end = "2022-11-30"
 
-Once you're familiar with the editor, you can find various project setting in the Overleaf menu, accessed via the button in the very top left of the editor. To view tutorials, user guides, and further documentation, please visit our \href{https://www.overleaf.com/learn}{help library}, or head to our plans page to \href{https://www.overleaf.com/user/subscription/plans}{choose your plan}.
+    #Tech
+    NFLX = yf.download("NFLX", start, end)
+    META = yf.download("META", start, end)
 
-\section{Some examples to get started}
+    #Financials
+    GS = yf.download("GS", start, end)
+    C = yf.download("C", start, end)
 
-\subsection{How to create Sections and Subsections}
-
-Simply use the section and subsection commands, as in this example document! With Overleaf, all the formatting and numbering is handled automatically according to the template you've chosen. If you're using Rich Text mode, you can also create new section and subsections via the buttons in the editor toolbar.
-
-\subsection{How to include Figures}
-
-First you have to upload the image file from your computer using the upload link in the file-tree menu. Then use the includegraphics command to include it in your document. Use the figure environment and the caption command to add a number and a caption to your figure. See the code for Figure \ref{fig:frog} in this section for an example.
-
-Note that your figure will automatically be placed in the most appropriate place for it, given the surrounding text and taking into account other figures or tables that may be close by. You can find out more about adding images to your documents in this help article on \href{https://www.overleaf.com/learn/how-to/Including_images_on_Overleaf}{including images on Overleaf}.
-
-\begin{figure}
-\centering
-\includegraphics[width=0.3\textwidth]{frog.jpg}
-\caption{\label{fig:frog}This frog was uploaded via the file-tree menu.}
-\end{figure}
-
-\subsection{How to add Tables}
-
-Use the table and tabular environments for basic tables --- see Table~\ref{tab:widgets}, for example. For more information, please see this help article on \href{https://www.overleaf.com/learn/latex/tables}{tables}. 
-
-\begin{table}
-\centering
-\begin{tabular}{l|r}
-Item & Quantity \\\hline
-Widgets & 42 \\
-Gadgets & 13
+    #Consumers
+    KO = yf.download("KO", start, end)
+    PEP = yf.download("PEP", start, end)
+\end{lstlisting}
+\section{Fusione dei dati}
+Ora procediamo alla fusione dei dati in un unico DataFrame e di ogni titolo prendiamo solo l'"Adj close".
+\begin{lstlisting}[language=python]
+    market = pd.concat([NFLX['Adj Close'], META['Adj Close'], GS['Adj Close'], C['Adj Close'], KO['Adj Close'], PEP['Adj Close']], axis=1)
+    market.columns = ['NFLX', 'META', 'GS', 'C', 'KO', 'PEP']
+\end{lstlisting}
+\section{Presentazione dei dati}
+Per mostrare la struttura del nostro DataFrame possiamo usare la seguente funzione che ci ritorna le righe iniziali del nostro DataFrame
+\begin{lstlisting}[language=python]
+    market.head()
+\end{lstlisting}
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &       NFLX &       META &          GS &          C &         KO &        PEP \\
+Date       &            &            &             &            &            &            \\
+\midrule
+2012-11-30 &  11.672857 &  28.000000 &   99.521103 &  28.667482 &  27.682371 &  52.271511 \\
+2012-12-03 &  10.857143 &  27.040001 &  100.036469 &  28.377247 &  27.288162 &  52.018406 \\
+2012-12-04 &  12.378571 &  27.459999 &   98.498741 &  28.435295 &  27.120255 &  52.010952 \\
+2012-12-05 &  11.910000 &  27.709999 &   98.963432 &  30.234777 &  27.237057 &  52.301300 \\
+2012-12-06 &  12.310000 &  26.969999 &   99.022560 &  30.699169 &  27.288162 &  52.533886 \\
+\bottomrule
 \end{tabular}
-\caption{\label{tab:widgets}An example table.}
-\end{table}
 
-\subsection{How to add Comments and Track Changes}
+E inoltre possiamo procedere anche alla stampa di un grafico di questi dati:
+\begin{lstlisting}[language=python]
+    market.plot(grid=True, title="Markets Adjs Closes")
+    market.plot(grid=True, title="Markets Adjs Closes", subplots=True)
+\end{lstlisting}
 
-Comments can be added to your project by highlighting some text and clicking ``Add comment'' in the top right of the editor pane. To view existing comments, click on the Review menu in the toolbar above. To reply to a comment, click on the Reply button in the lower right corner of the comment. You can close the Review pane by clicking its name on the toolbar when you're done reviewing for the time being.
+\includegraphics[width=0.5\textwidth, center]{market.png}
 
-Track changes are available on all our \href{https://www.overleaf.com/user/subscription/plans}{premium plans}, and can be toggled on or off using the option at the top of the Review pane. Track changes allow you to keep track of every change made to the document, along with the person making the change. 
+\includegraphics[width=0.5\textwidth, center]{marketSubplots.png}
 
-\subsection{How to add Lists}
+\chapter{Statistiche descrittive}
+\section{Rendimenti annauli}
+Per calcolare il rendimento \textbf{composto} e \textbf{cumulato annuale} dobbiamo prima trasformare i dati da giornalieri ad annuali nel seguente modo:
+\begin{lstlisting}[language=python]
+    NFLXy = NFLX.groupby(pd.Grouper(freq='Y')).last()
+\end{lstlisting}
+Dopodiché possiamo procedere con il calcolo dei \textbf{rendimenti cumulati annui} e quello dei \textbf{rendimenti composti annui}:
+\begin{lstlisting}[language=python]
+    #Rendimento cumulato annuale NFLX
+    rcuNFLXys = NFLXy['Adj Close'].pct_change().shift(-1)
+    rcuNFLXy = (1 + rcuNFLXys).cumprod() - 1
 
-You can make lists with automatic numbering \dots
+    #Rendimento composto annuale NFLX
+    rcoNFLXy = ((marketY['NFLX'][-1]/marketY['NFLX'][0])**(1/marketY['NFLX'].count()) - 1) *    100
+\end{lstlisting}
+Applichiamo questo procedimento per tutti i titoli.
+\section{Rendimenti semplici e logaritmici}
+Usiamo le seguenti formule per calcolarci i \textbf{rendimenti semplici} e \textbf{logaritmici}
+\begin{lstlisting}[language=python]
+    #Rendimento semplice
+    rsNFLX = NFLX['Adj Close'] / NFLX['Adj Close'].shift(1)
+    #Rendimento logaritmico
+    rlNFLX = np.log(NFLX['Adj Close'] / NFLX['Adj Close'].shift(1))
+\end{lstlisting}
+Applichiamo le stesse formule per tutti i titoli e li uniamo in un singolo DataFrame ottenendo i seguenti grafici
 
-\begin{enumerate}
-\item Like this,
-\item and like this.
-\end{enumerate}
-\dots or bullet points \dots
-\begin{itemize}
-\item Like this,
-\item and like this.
-\end{itemize}
+\includegraphics[width=0.5\textwidth, center]{logReturns.png}
 
-\subsection{How to write Mathematics}
+\includegraphics[width=0.5\textwidth, center]{logReturnsSubplots.png}
 
-\LaTeX{} is great at typesetting mathematics. Let $X_1, X_2, \ldots, X_n$ be a sequence of independent and identically distributed random variables with $\text{E}[X_i] = \mu$ and $\text{Var}[X_i] = \sigma^2 < \infty$, and let
-\[S_n = \frac{X_1 + X_2 + \cdots + X_n}{n}
-      = \frac{1}{n}\sum_{i}^{n} X_i\]
-denote their mean. Then as $n$ approaches infinity, the random variables $\sqrt{n}(S_n - \mu)$ converge in distribution to a normal $\mathcal{N}(0, \sigma^2)$.
+Possiamo subito notare come le serie dei rendimenti possano darci una diversa prospettiva sull'andamento dei titoli rispetto alla sola serie dei prezzi, infatti ci permettono di confrontare diversi titoli aventi prezzi molto differenti e quindi di concentrarci sull'andamento e non sul valore. Nel primo grafico Netlfix (blu) e Meta(arancione) sono i due titoli con piú outliers rispetto agli altri titoli e che di conseguenza hanno avuto dei movimenti di prezzo  piú ampi e forti (sia in positivo che in negativo) rispetto agli altri titoli. Inoltre nel secondo grafico si nota l'importanza che ha avuto la crisi causata dall'epidemia di covid-19 sui mercati nel 2020, tranne che nei che su Netflix e Meta. Che peró hanno avuto dei cali dopo il 2020, Netflix ad esempio aveva divulgato la notizia della perdita di abbonati alla piattaforma.
+\section{Rendimenti con istogrammi}
+Plottiamo ora i rendimenti tramite gli istogrammi con il seguente metodo:
+\begin{lstlisting}
+    plt.hist(rlNFLX, density=True, bins=50)
+    plt.title('NFLX Logarithmic returns histogram')
+\end{lstlisting}
 
-
-\subsection{How to change the margins and paper size}
-
-Usually the template you're using will have the page margins and paper size set correctly for that use-case. For example, if you're using a journal article template provided by the journal publisher, that template will be formatted according to their requirements. In these cases, it's best not to alter the margins directly.
-
-If however you're using a more general template, such as this one, and would like to alter the margins, a common way to do so is via the geometry package. You can find the geometry package loaded in the preamble at the top of this example file, and if you'd like to learn more about how to adjust the settings, please visit this help article on \href{https://www.overleaf.com/learn/latex/page_size_and_margins}{page size and margins}.
-
-\subsection{How to change the document language and spell check settings}
-
-Overleaf supports many different languages, including multiple different languages within one document. 
-
-To configure the document language, simply edit the option provided to the babel package in the preamble at the top of this example project. To learn more about the different options, please visit this help article on \href{https://www.overleaf.com/learn/latex/International_language_support}{international language support}.
-
-To change the spell check language, simply open the Overleaf menu at the top left of the editor window, scroll down to the spell check setting, and adjust accordingly.
-
-\subsection{How to add Citations and a References List}
-
-You can simply upload a \verb|.bib| file containing your BibTeX entries, created with a tool such as JabRef. You can then cite entries from it, like this: \cite{greenwade93}. Just remember to specify a bibliography style, as well as the filename of the \verb|.bib|. You can find a \href{https://www.overleaf.com/help/97-how-to-include-a-bibliography-using-bibtex}{video tutorial here} to learn more about BibTeX.
-
-If you have an \href{https://www.overleaf.com/user/subscription/plans}{upgraded account}, you can also import your Mendeley or Zotero library directly as a \verb|.bib| file, via the upload menu in the file-tree.
-
-\subsection{Good luck!}
-
-We hope you find Overleaf useful, and do take a look at our \href{https://www.overleaf.com/learn}{help library} for more tutorials and user guides! Please also let us know if you have any feedback using the Contact Us link at the bottom of the Overleaf menu --- or use the contact form at \url{https://www.overleaf.com/contact}.
-
-\bibliographystyle{alpha}
-\bibliography{sample}
+\includegraphics[width=0.5\textwidth, center]{logHist.png}
+Tramite gli istogrammi possiamo valutare la quantitá di volte che si sono presentati i rendimenti nella serie, e si nota subito che per un titolo come Golden Sachs si ha un istogramma piú largo rispetto a Netflix ad esempio, questo indica una maggiore stazionarietá del titolo e di conseguenza dei cambi di prezzo piú lievi.
+\section{Grafici diagnostici}
+Per studiare meglio i rendimenti aggiungiamo altri 3 grafici all'istogramma, aggiungiamo la kernel density, boxplot e qq-plot
+\subsection{NFLX}
+\subsection{META}
+\subsection{GS}
+\subsection{C}
+\subsection{KO}
+\subsection{PEP}
+\tableofcontents
 
 \end{document}
