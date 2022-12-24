@@ -308,5 +308,34 @@ Con la seguente immagine:
 \includegraphics[width=0.5\textwidth, center]{scatterPlot.png}
 [...]
 \chapter{Analisi di previsione}
+\chapter{Capital Asset Pricing Model}
+Per prima cosa scarichiamo i dati dell'indice S&P 500 insieme ai titoli scelti in precedenza e sistemiamo il DataFrame
+\begin{lstlisting}
+    marketBenchmark = '^GSPC'
+    df = yf.download(['NFLX', 'META', 'GS', 'C', 'KO', 'PEP', marketBenchmark], start, end)
+    marketCloses = df['Adj Close']
+    x = marketCloses.pct_change().dropna()
+\end{lstlisting}
+Ora possiamo procedere al calcolo del Beta di ciascun titolo rispetto al mercato. Il seguente codice mostra il metodo utilizzato per Netflix, analogamente lo si puó usare per gli altri titoli:
+\begin{lstlisting}
+    #NFLX and S&P500 Beta
+    NFLXMarket = pd.concat([x['NFLX'], x['^GSPC']], axis=1)
+    covNFLX = NFLXMarket.cov().iloc[0,1]
+    marketVariance = x['^GSPC'].var()
+    betaNFLX = covNFLX/marketVariance
+\end{lstlisting}
+Ottenendo i seguenti valori: 
+
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &     NFLX &     META &      GS &        C &       KO &      PEP \\
+\midrule
+Beta &  1.154346 &  1.234385 &  1.204651 &  1.348596 &  0.633521 &  0.674546 \\
+
+\bottomrule
+\end{tabular}
+
+\section{Beta}
+
 \tableofcontents
 \end{document}
