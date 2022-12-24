@@ -308,6 +308,59 @@ Con la seguente immagine:
 \includegraphics[width=0.5\textwidth, center]{scatterPlot.png}
 [...]
 \chapter{Analisi di previsione}
+Per fare l'analisi di previsione ho deciso di usare una Support Vector Machine (SVM). Per prima cosa prendiamo i dati e li raggruppiamo mensilmente con il seguente codice:
+\begin{lstlisting}[language=python]
+    NFLXm = NFLX.groupby(pd.Grouper(freq='M')).last()
+    METAm = META.groupby(pd.Grouper(freq='M')).last()
+    GSm = GS.groupby(pd.Grouper(freq='M')).last()
+    Cm = C.groupby(pd.Grouper(freq='M')).last()
+    KOm = KO.groupby(pd.Grouper(freq='M')).last()
+    PEPm = PEP.groupby(pd.Grouper(freq='M')).last()
+\end{lstlisting}
+Adesso possiamo procedere alla creazione delle "prediction". Quello che vogliamo ottenere è la predizione del prossimo mese di conseguenza la riga "prediction" è lo shift dei prezzi di una unità.
+
+\begin{lstlisting}[language=python]
+    df = GSm[['Adj Close']]
+    forecast_out = 1
+    monthPrevision = 10
+    df['prediction'] = df[['Adj Close']].shift(-forecast_out)
+    x = np.array(df.drop(['prediction'], 1))
+    x = x[:-forecast_out]
+    y = np.array(df['prediction'])
+    y = y[:-forecast_out]
+\end{lstlisting}
+
+Ora andiamo avanti dividendo il nostro dataset in due, uno di allenamento e uno di test. In particolare le dimesioni dei due dataset sono 80 e 30 rispettivamente. Poi alleniamo la nostra SVM con il metodo \lstinline{.fit()} e otteniamo un primo valore che è quello di confidenza che è pari a \num{0.5844}
+
+\begin{lstlisting}[language=python]
+    #usiamo 30 mesi per il test e 80 per il train
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=30, train_size=80)
+    svr_rbf = SVR(kernel='rbf', C=1e3, gamma=0.1)
+    svr_rbf.fit(x_train, y_train)
+    svm_confidence = svr_rbf.score(x_test, y_test)
+    print("svm confidence: ", round(svm_confidence, 4))
+\end{lstlisting}
+
+Prendiamo gli ultimi 10 mesi dei nostri prezzi per confrontare le previsioni rispetto ai valori effettivi e mostriamoli a grafico
+
+\begin{lstlisting}[language=python]
+    #prendiamo gli ultimi 10 mesi per fare la previsione
+    x_mesi = np.array(df.drop(['prediction'], 1))[-monthPrevision:]
+    y_mesi = np.array(df.drop(['Adj Close'], 1))[-monthPrevision:]
+    
+    #effettuiamo la previsione
+    svm_prediction = svr_rbf.predict(x_mesi)
+    plt.figure(figsize=(40,15))
+    plt.plot(y_mesi, color='red', label='Real GS Stock Price')
+    plt.plot(svm_prediction, color='blue', label='Predicted GS Stock Price')
+    plt.title('GS Stock Price Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('GS Stock Price')
+    plt.legend()
+    plt.show()
+\end{lstlisting}
+\includegraphics[width=0.6\textwidth, center]{svm.png}
+
 \chapter{Capital Asset Pricing Model}
 Per prima cosa scarichiamo i dati dell'indice S&P 500 insieme ai titoli scelti in precedenza e sistemiamo il DataFrame
 \begin{lstlisting}
