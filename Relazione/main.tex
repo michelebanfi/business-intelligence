@@ -361,6 +361,90 @@ Prendiamo gli ultimi 10 mesi dei nostri prezzi per confrontare le previsioni ris
 \end{lstlisting}
 \includegraphics[width=0.6\textwidth, center]{svm.png}
 
+\chapter{Strategia di trading e backtesting}
+Come strategia di trading ho deciso di adottare l'indicatore \textbf{MACD} il cui acronimo sta per \textbf{Moving Average Convergence Divergence} che é un trend-following momentum indicator. Per calcolare questo indicatore sono necessarie tre Medie Mobili Esponenziali (\textbf{EMA}). La prima media mobile, quella più veloce, viene calcolata a 12 periodi; quella più lenta invece è a 26 periodi. Queste due medie mobili vengono sottratte fra loro per calcolarne la differenza che sarà quindi rappresentata graficamente da una sola linea (MACD Line). Per generare segnali è stata introdotta la terza linea, ovvero una media mobile esponenziale, solitamente a 9 periodi, della precedente differenza (Signal Line). Per generare un segnale di acquisto lungo, la MACD Line deve incrociare al rialzo la Signal Line.
+
+Confronteremo la seguente strategia con una strategia Buy-and-Hold e con un strategia di incrocio di due Medie Mobili Semplici (\textbf{SMA}) sul prezzo. 
+\section{Costruzione della strategia}
+Quindi per prima cosa calcoliamo gli indicatori
+\begin{lstlisting}[language=python]
+    data = NFLX.drop(columns=['Open', 'High', 'Low',])
+    data['SMA20'] = data['Adj Close'].rolling(20).mean()
+    data['SMA120'] = data['Adj Close'].rolling(120).mean()
+    exp1 = data['Close'].ewm(span=12, adjust = False).mean()
+    exp2 = data['Close'].ewm(span=26, adjust = False).mean()
+    data['MACD'] = exp1 - exp2
+    data['Signal line'] = data['MACD'].ewm(span=9, adjust = False).mean()
+    data.dropna()
+\end{lstlisting}
+Poi procediamo al calcolo dei segnali di acquisto e dei rendimenti delle strategia SMA e MACD
+\begin{lstlisting}
+    data['Price_yesterday'] = data['Adj Close'].shift(1)
+    data['Change'] = data['Adj Close'] / data['Price_yesterday']
+    
+    #segnale aquisto strategia SMA
+    data['Invested_SMA'] = [1 if data.loc[i, 'SMA20'] > data.loc[i, 'SMA120'] 
+                            else 0 for i in data.index]
+    
+    #segnale acquisto strategia MACD
+    data['Invested_MACD'] = [1 if data.loc[i, 'MACD'] > data.loc[i, 'Signal line']
+                            else 0 for i in data.index]
+    data = data.dropna()
+    
+    #calcolo strategia SMA
+    sma = data[data['Invested_SMA'] == 1]
+    sma['Return'] = np.cumprod(sma['Change'])
+    sma['rtn'] =sma['Return'].pct_change()
+    sma['rtn'].std()*np.sqrt(252)
+    sma['rtn'].mean()*252 / (sma['rtn'].std()*np.sqrt(252))
+    
+    #calcolo strategia MACD
+    macd = data[data['Invested_MACD'] == 1]
+    macd['Return'] = np.cumprod(macd['Change'])
+    macd['rtn'] =macd['Return'].pct_change()
+    macd['rtn'].std()*np.sqrt(252)
+    macd['rtn'].mean()*252 / (macd['rtn'].std()*np.sqrt(252))
+\end{lstlisting}
+\section{Misurazione efficienza della strategia}
+Ora calcoliamo il rendimento di una strategia Buy-and-Hold con il seguente codice
+\begin{lstlisting}[language=python]
+    data['Buy_and_hold'] = np.cumprod(data['Change'])
+    data['rtn'] = data['Buy_and_hold'].pct_change()
+    data['rtn'].std()
+    data['rtn'].mean()*252 / (data['rtn'].std()*np.sqrt(252))
+\end{lstlisting}
+Mostriamo graficamente ora i dati con il seguente codice in 4 diversi grafici:
+\begin{lstlisting}
+    plt.figure(figsize=(20,24))
+    ax1 = plt.subplot2grid((12,1), (0,0), rowspan = 4, colspan = 1, title = 'NFLX')
+    ax2 = plt.subplot2grid((12,1), (4,0), rowspan = 2, colspan = 1, sharex = ax1)
+    ax3 = plt.subplot2grid((12,1), (6,0), rowspan = 2, colspan = 1, sharex = ax1)
+    ax4 = plt.subplot2grid((12,1), (8,0), rowspan = 2, colspan = 1, sharex = ax1)
+    
+    ax1.plot(data['Adj Close'], label = 'Price')
+    ax1.plot(data['SMA20'], label = 'SMA20')
+    ax1.plot(data['SMA120'], label = 'SMA120')
+    
+    ax2.bar(data.index, data['Volume'], label = 'Volume')
+    
+    ax3.plot(data['MACD'], label = 'MACD')
+    ax3.plot(data['Signal line'], label = 'Signal line')
+    
+    ax4.plot(data['Buy_and_hold'], label = 'Buy and hold')
+    ax4.plot(sma['Return'], label = 'SMA')
+    ax4.plot(macd['Return'], label = 'MACD')
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax4.set_xlabel('Date (Year - month)')
+    
+    ax1.legend()
+    ax2.legend()
+    ax4.legend()
+    ax3.legend()
+    plt.show()
+\end{lstlisting}
+
+\includegraphics[width=1\textwidth, center]{MACD.png}
+
 \chapter{Capital Asset Pricing Model}
 Per prima cosa scarichiamo i dati dell'indice S&P 500 insieme ai titoli scelti in precedenza e sistemiamo il DataFrame
 \begin{lstlisting}
@@ -388,7 +472,271 @@ Beta &  1.154346 &  1.234385 &  1.204651 &  1.348596 &  0.633521 &  0.674546 \\
 \bottomrule
 \end{tabular}
 
-\section{Beta}
+\section{Fattori di rischio Fama French}
 
+I tre fattori del modello di Fama e French (*) sono:
+\begin{itemize}[leftmargin=30pt, rightmargin=2cm]
+\item il fattore mercato, cioè la dipendenza dall'andamento del mercato azionario (\textbf{MKT})
+\item il fattore dimensione (\textbf{SMB}) costruito come rendimento in eccesso delle azioni a piccola capitalizzazione rispetto alle grandi
+\item il fattore valore (\textbf{HML}) costruito come rendimento in eccesso delle azioni con un rapporto fra patrimonio e prezzo alto (Value stocks) e quelle con un rapporto fra patriomonio e prezzo basso (Growth stocks)
+\end{itemize}
+Come prima cosa, per poter scaricare i dati del fattore Fama French importiamo la libreria \lstinline{pandas_datareader} nel seguente modo
+\begin{lstlisting}
+    import pandas_datareader as pdr
+\end{lstlisting}
+Poi procediamo con il download dei dati con la seguente funzione
+\begin{lstlisting}
+    factor_df = pdr.famafrench.FamaFrenchReader('F-F_Research_Data_Factors', start, end).read()[0]
+\end{lstlisting}
+
+I valori \lstinline{start} e \lstinline{end} sono i valori di inizio e fine del nostro periodo di analisi. Il nostro DataFrame \lstinline{factor_df} si presenta nel seguente modo:
+
+\begin{tabular}{lrrrr}
+\toprule
+{} &     mkt &     smb &     hml &      rf \\
+Date    &         &         &         &         \\
+\midrule
+2012-11 &  0.0078 &  0.0064 & -0.0084 &  0.0001 \\
+2012-12 &  0.0118 &  0.0150 &  0.0351 &  0.0001 \\
+2013-01 &  0.0557 &  0.0033 &  0.0096 &  0.0000 \\
+2013-02 &  0.0129 & -0.0028 &  0.0011 &  0.0000 \\
+2013-03 &  0.0403 &  0.0081 & -0.0019 &  0.0000 \\
+\bottomrule
+\end{tabular}
+
+\subsection{NFLX Fama-French}
+Procediamo poi al calcolo della regressione per i valori di Netflix con il seguente codice:
+
+\begin{lstlisting}[language=python]
+    #NFLX Fama French risk exposure
+    y = NFLXm['Adj Close'].pct_change().dropna()
+    
+    #sistemiamo i mesi, per farli combaciare
+    factor_df = factor_df.tail(-1)
+    y = y.head(-1)
+    
+    #sistemiamo le date allo stesso formato
+    y.index = y.index.strftime('%Y-%m')
+    factor_df.index = factor_df.index.strftime('%Y-%m')
+    
+    #rinominiamo la colonna
+    y.name = 'rtn'
+    
+    #uniamo i due dataframe
+    ff_data = factor_df.join(y)
+    
+    #calcoliamo l'Excess Return
+    ff_data['excess_rtn'] = ff_data.rtn - ff_data.rf
+    
+    #effettuiamo la regressione
+    ff_model = smf.ols(formula = 'excess_rtn ~ mkt + smb + hml', data = ff_data).fit()
+\end{lstlisting}
+Il soprastante codice produce il seguente output:
+
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.216   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.195   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     10.54   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  3.53e-06   \\
+\textbf{Time:}             &     14:53:46     & \textbf{  Log-Likelihood:    } &    77.670   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -147.3   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -136.2   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &       0.0221  &        0.012     &     1.824  &         0.071        &       -0.002    &        0.046     \\
+\textbf{mkt}       &       1.3657  &        0.281     &     4.858  &         0.000        &        0.809    &        1.923     \\
+\textbf{smb}       &      -0.0198  &        0.483     &    -0.041  &         0.967        &       -0.977    &        0.937     \\
+\textbf{hml}       &      -0.8983  &        0.334     &    -2.693  &         0.008        &       -1.559    &       -0.238     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       & 59.945 & \textbf{  Durbin-Watson:     } &    1.717  \\
+\textbf{Prob(Omnibus):} &  0.000 & \textbf{  Jarque-Bera (JB):  } &  296.596  \\
+\textbf{Skew:}          &  1.655 & \textbf{  Prob(JB):          } & 3.94e-65  \\
+\textbf{Kurtosis:}      &  9.991 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+\end{center}
+
+Analogamente calcoliamo l'esposizione di ogni titolo ai fattori di rischio
+
+\subsection{META Fama-French}
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.243   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.223   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     12.30   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  4.90e-07   \\
+\textbf{Time:}             &     15:04:42     & \textbf{  Log-Likelihood:    } &    120.19   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -232.4   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -221.3   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &       0.0029  &        0.008     &     0.348  &         0.729        &       -0.014    &        0.020     \\
+\textbf{mkt}       &       1.1127  &        0.197     &     5.658  &         0.000        &        0.723    &        1.502     \\
+\textbf{smb}       &      -0.3803  &        0.338     &    -1.125  &         0.263        &       -1.050    &        0.289     \\
+\textbf{hml}       &      -0.5585  &        0.233     &    -2.394  &         0.018        &       -1.021    &       -0.096     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       & 24.295 & \textbf{  Durbin-Watson:     } &    1.707  \\
+\textbf{Prob(Omnibus):} &  0.000 & \textbf{  Jarque-Bera (JB):  } &  166.493  \\
+\textbf{Skew:}          &  0.216 & \textbf{  Prob(JB):          } & 7.02e-37  \\
+\textbf{Kurtosis:}      &  8.779 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+
+\end{center}
+\subsection{GS Fama-French}
+
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.676   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.667   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     79.93   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  5.23e-28   \\
+\textbf{Time:}             &     15:17:45     & \textbf{  Log-Likelihood:    } &    199.72   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -391.4   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -380.3   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &      -0.0006  &        0.004     &    -0.127  &         0.899        &       -0.009    &        0.008     \\
+\textbf{mkt}       &       1.3185  &        0.101     &    13.081  &         0.000        &        1.119    &        1.518     \\
+\textbf{smb}       &       0.2460  &        0.173     &     1.419  &         0.158        &       -0.097    &        0.589     \\
+\textbf{hml}       &       0.6648  &        0.120     &     5.559  &         0.000        &        0.428    &        0.902     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       &  3.869 & \textbf{  Durbin-Watson:     } &    2.068  \\
+\textbf{Prob(Omnibus):} &  0.144 & \textbf{  Jarque-Bera (JB):  } &    4.502  \\
+\textbf{Skew:}          & -0.091 & \textbf{  Prob(JB):          } &    0.105  \\
+\textbf{Kurtosis:}      &  3.935 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+\end{center}
+
+\subsection{C Fama-French}
+
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.724   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.717   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     100.5   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  5.32e-32   \\
+\textbf{Time:}             &     15:19:03     & \textbf{  Log-Likelihood:    } &    194.52   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -381.0   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -369.9   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &      -0.0077  &        0.005     &    -1.692  &         0.093        &       -0.017    &        0.001     \\
+\textbf{mkt}       &       1.4752  &        0.105     &    14.010  &         0.000        &        1.267    &        1.684     \\
+\textbf{smb}       &       0.1708  &        0.181     &     0.944  &         0.347        &       -0.188    &        0.529     \\
+\textbf{hml}       &       1.0114  &        0.125     &     8.096  &         0.000        &        0.764    &        1.259     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       &  0.264 & \textbf{  Durbin-Watson:     } &    1.837  \\
+\textbf{Prob(Omnibus):} &  0.876 & \textbf{  Jarque-Bera (JB):  } &    0.121  \\
+\textbf{Skew:}          & -0.077 & \textbf{  Prob(JB):          } &    0.942  \\
+\textbf{Kurtosis:}      &  3.029 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+\end{center}
+
+\subsection{KO Fama-French}
+
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.434   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.419   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     29.37   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  3.57e-14   \\
+\textbf{Time:}             &     15:20:01     & \textbf{  Log-Likelihood:    } &    231.66   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -455.3   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -444.2   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &       0.0002  &        0.003     &     0.057  &         0.955        &       -0.006    &        0.007     \\
+\textbf{mkt}       &       0.6516  &        0.077     &     8.455  &         0.000        &        0.499    &        0.804     \\
+\textbf{smb}       &      -0.7616  &        0.132     &    -5.749  &         0.000        &       -1.024    &       -0.499     \\
+\textbf{hml}       &       0.1742  &        0.091     &     1.905  &         0.059        &       -0.007    &        0.355     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       &  0.634 & \textbf{  Durbin-Watson:     } &    2.422  \\
+\textbf{Prob(Omnibus):} &  0.728 & \textbf{  Jarque-Bera (JB):  } &    0.289  \\
+\textbf{Skew:}          & -0.078 & \textbf{  Prob(JB):          } &    0.866  \\
+\textbf{Kurtosis:}      &  3.185 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+\end{center}
+
+\subsection{PEP Fama-French}
+
+\begin{center}
+\begin{tabular}{lclc}
+\toprule
+\textbf{Dep. Variable:}    &   excess\_rtn    & \textbf{  R-squared:         } &     0.441   \\
+\textbf{Model:}            &       OLS        & \textbf{  Adj. R-squared:    } &     0.427   \\
+\textbf{Method:}           &  Least Squares   & \textbf{  F-statistic:       } &     30.27   \\
+\textbf{Date:}             & Tue, 27 Dec 2022 & \textbf{  Prob (F-statistic):} &  1.69e-14   \\
+\textbf{Time:}             &     15:20:51     & \textbf{  Log-Likelihood:    } &    243.18   \\
+\textbf{No. Observations:} &         119      & \textbf{  AIC:               } &    -478.4   \\
+\textbf{Df Residuals:}     &         115      & \textbf{  BIC:               } &    -467.2   \\
+\textbf{Df Model:}         &           3      & \textbf{                     } &             \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lcccccc}
+                   & \textbf{coef} & \textbf{std err} & \textbf{t} & \textbf{P$> |$t$|$} & \textbf{[0.025} & \textbf{0.975]}  \\
+\midrule
+\textbf{Intercept} &       0.0041  &        0.003     &     1.365  &         0.175        &       -0.002    &        0.010     \\
+\textbf{mkt}       &       0.6386  &        0.070     &     9.129  &         0.000        &        0.500    &        0.777     \\
+\textbf{smb}       &      -0.6303  &        0.120     &    -5.240  &         0.000        &       -0.869    &       -0.392     \\
+\textbf{hml}       &      -0.0088  &        0.083     &    -0.106  &         0.916        &       -0.173    &        0.156     \\
+\bottomrule
+\end{tabular}
+\begin{tabular}{lclc}
+\textbf{Omnibus:}       &  0.613 & \textbf{  Durbin-Watson:     } &    2.344  \\
+\textbf{Prob(Omnibus):} &  0.736 & \textbf{  Jarque-Bera (JB):  } &    0.549  \\
+\textbf{Skew:}          &  0.164 & \textbf{  Prob(JB):          } &    0.760  \\
+\textbf{Kurtosis:}      &  2.944 & \textbf{  Cond. No.          } &     42.0  \\
+\bottomrule
+\end{tabular}
+%\caption{OLS Regression Results}
+\end{center}
+
+\chapter{Creazione di un portafoglio}
+\chapter{Conclusioni}
 \tableofcontents
 \end{document}
