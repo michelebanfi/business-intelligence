@@ -1,0 +1,33 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\numberline {1}Sommario dei dati utilizzati}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Titoli}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Scaricare i dati}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Fusione dei dati}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Presentazione dei dati}{2}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Statistiche descrittive}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Rendimenti annauli}{4}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Rendimenti semplici e logaritmici}{4}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Rendimenti con istogrammi}{5}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Grafici diagnostici}{6}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}NFLX}{7}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}META}{7}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}GS}{8}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}C}{8}{subsection.2.4.4}%
+\contentsline {subsection}{\numberline {2.4.5}KO}{9}{subsection.2.4.5}%
+\contentsline {subsection}{\numberline {2.4.6}PEP}{9}{subsection.2.4.6}%
+\contentsline {section}{\numberline {2.5}Statistiche descrittive univariate}{9}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Varianza e covarianza}{10}{section.2.6}%
+\contentsline {chapter}{\numberline {3}Analisi di previsione}{12}{chapter.3}%
+\contentsline {chapter}{\numberline {4}Strategia di trading e backtesting}{14}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Costruzione della strategia}{14}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Misurazione efficienza della strategia}{15}{section.4.2}%
+\contentsline {chapter}{\numberline {5}Capital Asset Pricing Model}{17}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Fattori di rischio Fama French}{17}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}NFLX Fama-French}{18}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}META Fama-French}{19}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}GS Fama-French}{19}{subsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.1.4}C Fama-French}{19}{subsection.5.1.4}%
+\contentsline {subsection}{\numberline {5.1.5}KO Fama-French}{20}{subsection.5.1.5}%
+\contentsline {subsection}{\numberline {5.1.6}PEP Fama-French}{20}{subsection.5.1.6}%
+\contentsline {chapter}{\numberline {6}Creazione di un portafoglio}{21}{chapter.6}%
+\contentsline {chapter}{\numberline {7}Conclusioni}{22}{chapter.7}%
