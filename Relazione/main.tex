@@ -15,18 +15,23 @@
     breakatwhitespace=false,         
     breaklines=true,                 
     captionpos=b,                    
-    keepspaces=true,                 
+    keepspaces=true, 
+    keywordstyle=\bfseries,
+    commentstyle=\ttfamily,
     numbers=left,                    
     numbersep=5pt,                  
     showspaces=false,                
     showstringspaces=false,
     showtabs=false,                  
-    tabsize=2
+    tabsize=2,
+    language=Python
 }
 
 \lstset{style=mystyle}
+\lstset{language=Python}
 
 % Useful packages
+\usepackage{subcaption}
 \usepackage[export]{adjustbox}
 \usepackage{amsmath}
 \usepackage{graphicx}
@@ -739,6 +744,188 @@ Analogamente calcoliamo l'esposizione di ogni titolo ai fattori di rischio
 Possiamo notare che in tutti e 6 i titoli il fattore di rischio maggiore é \textbf{mkt} che corrisponde al mercato
 
 \chapter{Creazione di un portafoglio}
+Creiamo ora un portafoglio composto dalle nostre 6 azioni. Quindi per prima cosa prendiamo i dati e calcoliamo alcune formule:
+\begin{lstlisting}[language=python]
+    N_PORTFOLIOS = 10 ** 5
+    N_DAYS = 252
+    prices_df = yf.download(["NFLX","META", "GS", "C", "KO", "PEP"], start, end, adjusted=True)
+    returns_df = prices_df['Adj Close'].pct_change().dropna()
+    avg_returns = returns_df.mean() * N_DAYS
+    cov_mat = returns_df.cov() * N_DAYS
+\end{lstlisting}
+Calcoliamo ora il ritorno annualizzato e la deviazione standard corrispondente.
+\begin{lstlisting}[language=python]
+    returns_df = prices_df['Adj Close'].pct_change().dropna()
+    avg_returns = returns_df.mean() * N_DAYS
+    cov_mat = returns_df.cov() * N_DAYS
+\end{lstlisting}
+Simuliamo dei portafogli randomici
+\begin{lstlisting}[language=python]
+    np.random.seed(42)
+    weights = np.random.random(size=(N_PORTFOLIOS, 6))
+    weights /= np.sum(weights, axis=1)[:, np.newaxis]
+\end{lstlisting}
+Calcoliamo le metriche di questi portafogli, ovvero:
+
+\begin{itemize}[leftmargin=30pt, rightmargin=2cm]
+\item Volatilitá
+\item Sharpe ratio
+\item Ritorni
+\end{itemize}
+
+\begin{lstlisting}[language=python]
+    portf_rtns = np.dot(weights, avg_returns)
+    portf_vol = []
+    for i in range(0, len(weights)):
+        portf_vol.append(np.sqrt(np.dot(weights[i].T, np.dot(cov_mat, weights[i]))))
+    portf_vol = np.array(portf_vol)
+    portf_sharpe_ratio = portf_rtns / portf_vol
+\end{lstlisting}
+Ora che abbiamo tutti i dati, localizziamo i portafogli e creiamo la frontiera efficiente
+\begin{lstlisting}[language=python]
+    portf_results_df = pd.DataFrame({'returns': portf_rtns, 'volatility': portf_vol, 'sharpe_ratio': portf_sharpe_ratio})
+    N_POINTS = 100
+    portf_vol_ef = []
+    indices_to_skip = []
+    portf_rtns_ef = np.linspace(portf_results_df.returns.min(), portf_results_df.returns.max(), N_POINTS)
+    portf_rtns_ef = np.round(portf_rtns_ef, 2)
+    portf_rtns = np.round(portf_rtns, 2)
+    for point_index in range(N_POINTS):
+        if portf_rtns_ef[point_index] not in portf_rtns:
+            indices_to_skip.append(point_index)
+            continue
+        matched_ind = np.where(portf_rtns == portf_rtns_ef[point_index])
+        portf_vol_ef.append(np.min(portf_vol[matched_ind]))
+    portf_rtns_ef = np.delete(portf_rtns_ef, indices_to_skip)
+\end{lstlisting}
+Ora, non ci resta che plottare la frontiera efficiente
+\begin{lstlisting}[language=python]
+    RISKY_ASSETS = ['NFLX', 'META', 'GS', 'C', 'KO', 'PEP']
+    n_assets = len(RISKY_ASSETS)
+    MARKS = ['o', 'X', 'd', '*', 'P', 'h']
+    
+    fig, ax = plt.subplots()
+    fig.set_size_inches(20, 15)
+    portf_results_df.plot(kind='scatter', x='volatility', y='returns', c='sharpe_ratio', cmap='RdYlGn', edgecolors='black', ax=ax)
+    ax.set(xlabel='Volatility', ylabel='Expected Returns', title='Efficient Frontier')
+    ax.plot(portf_vol_ef, portf_rtns_ef, 'b--')
+    for asset_index in range(n_assets):
+        ax.scatter(x=np.sqrt(cov_mat.iloc[asset_index, asset_index]), y=avg_returns[asset_index], marker=MARKS[asset_index], s=150, color='black', label=RISKY_ASSETS[asset_index])
+    ax.legend()
+\end{lstlisting}
+\includegraphics[width=1\textwidth, center]{frontieraEfficiente.png}
+Ora possiamo trovare due portafogli importanti, il primo é quello costituito per diminuire il piú possibile la volatilitá, il secondo per massimizzare lo sharpe ratio, e sono i seguenti:
+\begin{lstlisting}[]
+    Minimum Volatility portfolio ----
+    Performance
+    returns: 13.75% volatility: 16.46% sharpe_ratio: 83.54% 
+    Weights
+    NFLX: 2.28% META: 2.40% GS: 44.51% C: 3.89% KO: 4.54% PEP: 42.38%
+\end{lstlisting}
+
+\begin{lstlisting}
+    Maximum Sharpe ratio portfolio ----
+    Performance
+    returns: 22.53% volatility: 20.61% sharpe_ratio: 109.30% 
+    Weights
+    NFLX: 0.61% META: 15.44% GS: 7.14% C: 5.23% KO: 27.08% PEP: 44.50% 
+\end{lstlisting}
+
+Ora vediamo invece un'altro modo per la costruzione di un portafogli, tramite una costruzione per percentuale di rischio.
+
+\begin{lstlisting}[language=python]
+    import cvxpy as cp
+    avg_returns = avg_returns.values
+    cov_mat = cov_mat.values
+
+    weights = cp.Variable(n_assets)
+    gamma = cp.Parameter(nonneg=True)
+    portf_rtn_cvx = avg_returns * weights 
+    portf_vol_cvx = cp.quad_form(weights, cov_mat)
+    objective_function = cp.Maximize(portf_rtn_cvx - gamma * portf_vol_cvx)
+    problem = cp.Problem(objective_function, 
+                         [cp.sum(weights) == 1, weights >= 0])
+\end{lstlisting}
+
+Ora creiamo le percentuali del portafoglio:
+
+\begin{lstlisting}[language=python]
+    N_POINTS = 25
+    portf_rtn_cvx_ef = np.zeros(N_POINTS)
+    portf_vol_cvx_ef = np.zeros(N_POINTS)
+    weights_ef = []
+    gamma_range = np.logspace(-3, 3, num=N_POINTS)
+    
+    for i in range(N_POINTS):
+        gamma.value = gamma_range[i]
+        problem.solve()
+        portf_vol_cvx_ef[i] = cp.sqrt(portf_vol_cvx).value
+        portf_rtn_cvx_ef[i] = portf_rtn_cvx.value
+        weights_ef.append(weights.value)
+\end{lstlisting}
+
+E mostriamo a video il risultato:
+\begin{lstlisting}[language=python]
+    weights_df = pd.DataFrame(weights_ef, 
+                              columns=RISKY_ASSETS, 
+                              index=np.round(gamma_range, 3))
+    ax = weights_df.plot(kind='bar', stacked=True) 
+    ax.set(title='Weights allocation per risk-aversion level',
+           xlabel=r'$\gamma$', 
+           ylabel='weight')
+    ax.legend(bbox_to_anchor=(1,1))
+    ax.figure.set_size_inches(16, 16)
+    
+    plt.show()
+\end{lstlisting}
+
+\includegraphics[width=0.6\textwidth, center]{portafogliPerRischio.png}
+Ora invece procediamo con l'analisi delle performance dei portafogli che abbiamo costruito, in particolare confontandoli con il mercato e con un portafoglio costituito con i pesi equamente distribuiti, nel seguente modo:  \(\frac{1}{\text{number of assets}}\). Quindi per prima cosa riprendiamoci il valore del mercato scaricato in precedenza e calcoliamone i ritorni: \lstinline{benchmark = marketCloses['^GSPC'].pct_change().dropna()}. Ora tramite la libreria \lstinline{pyfolio} possiamo avere molti dati e grafici direttamente passando le serie, quindi procediamo con l'installazione e l'importo. (Da notare che la libreria originale é stata sostituita con la versione \lstinline{reloaded}, in quanto non piú supportata)
+\begin{lstlisting}
+    pip install pyfolio-reloaded
+    import pyfolio as pf
+\end{lstlisting}
+Ora possiamo quindi procedere al calcolo delle serie e produrre il \lstinline{tear_sheet} e i dati con il seguente codice:
+\begin{lstlisting}[language=python]
+    portfolio_weights = n_assets * [1 / n_assets]
+    portfolio_returns = pd.Series(np.dot(portfolio_weights, returns_df.T),
+                                              index=returns_df.index)
+    pf.create_returns_tear_sheet(portfolio_returns, benchmark_rets=benchmark)
+\end{lstlisting}
+ Analogamente eseguiamo lo stesso comando con i pesi calcolati in precedenza
+ e otteniamo i seguenti valori di beta:
+
+\begin{tabular}{lrrr}
+\toprule
+{} &     1/n &     Sharpe &      Volatility \\
+\midrule
+Beta &  1.04 &  0.92 &  0.73 \\
+
+\bottomrule
+\end{tabular}
+
+\begin{figure}[h]
+
+\begin{subfigure}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{normalTearSheet.jpeg} 
+\caption{1/n}
+\label{fig:subim1}
+\end{subfigure}
+\begin{subfigure}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{sharpeTearSheet.jpeg}
+\caption{Sharpe}
+\label{fig:subim2}
+\end{subfigure}
+\begin{subfigure}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{volTearSheet.jpeg}
+\caption{Volatility}
+\label{fig:subim3}
+\end{subfigure}
+
+\caption{Ritorni di portafogli con pesi diversi}
+\label{fig:image2}
+\end{figure}
+
 \chapter{Conclusioni}
 \tableofcontents
 \end{document}
