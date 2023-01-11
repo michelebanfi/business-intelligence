@@ -192,9 +192,9 @@ Tramite gli istogrammi possiamo valutare la quantitá di volte che si sono prese
 \section{Grafici diagnostici}
 Per studiare meglio i rendimenti aggiungiamo altri 3 grafici all'istogramma, la kernel density, boxplot e qq-plot.
 \begin{itemize}[leftmargin=30pt, rightmargin=2cm]
-\item Box Plot -> In un solo gradico ci mostra: mediana, media primo quartile, terzo quartile e la distanza tra essi, e infine ci mostra anche gli outliers
-\item QQ-Plot -> Ci mostra quanto una serie é prossima alla normalitá. Una serie normale ha la linea del qq plot esattamente in diagonale
-\item Kernel density -> É una curva addolcita dell'istogramma
+\item Box Plot \textrightarrow{} In un solo gradico ci mostra: mediana, media primo quartile, terzo quartile e la distanza tra essi, e infine ci mostra anche gli outliers
+\item QQ-Plot \textrightarrow{} Ci mostra quanto una serie é prossima alla normalitá. Una serie normale ha la linea del qq plot esattamente in diagonale
+\item Kernel density \textrightarrow{} É un grafico come l'istogramma, ma al posto che raggruppare i dati, li rappresenta tutti
 \end{itemize}
 Il codice per produrre i grafici é il seguente:
 \begin{lstlisting}[language=python]
@@ -271,7 +271,7 @@ Kurtosis           &  31.0142 &  27.8449 &  9.8418 &  14.9718 &  10.6779 &  23.7
 \noindent Il titolo con il rendimento piú alto é Netflix che ha una media di \num{0.0013} mentre quello con il rendimento piú basso é Citigroup con \num{0.0002}.
 Mentre per quanto riguarda la deviazione standard, il titolo piú alto é sempre Netflix con \num{0.03} mentre quelli piú bassi sono Coca-Cola e Pepsi con \num{0.0115} [...]
 \section{Varianza e covarianza}
-Calcoliamo ora la matrice di covarianza e la covarianza tra i nostri titoli con le seguenti funzioni:
+Calcoliamo ora la matrice di covarianza tra i nostri titoli con le seguenti funzioni:
 \begin{lstlisting}[language=python]
     #Covariance Matrix
     covariance = rlMarket.cov().iloc[0,1]
@@ -301,6 +301,7 @@ Procediamo con il calcolo della matrice di correlazione con il seguente codice:
 \end{lstlisting}
 
 \includegraphics[width=0.5\textwidth, center]{correlationMatrix.png}
+Possiamo notare che i titoli dello stesso settore sono molto correlati, in particolare GS e C piú degli altri
 
 Proseguiamo quindi con la costruzione degli scatter plot
 \begin{lstlisting}
@@ -458,6 +459,7 @@ Per prima cosa scarichiamo i dati dell'indice S&P 500 insieme ai titoli scelti i
     marketCloses = df['Adj Close']
     x = marketCloses.pct_change().dropna()
 \end{lstlisting}
+\section{Calcolo dei Beta rispetto al mercato}
 Ora possiamo procedere al calcolo del Beta di ciascun titolo rispetto al mercato. Il seguente codice mostra il metodo utilizzato per Netflix, analogamente lo si puó usare per gli altri titoli:
 \begin{lstlisting}
     #NFLX and S&P500 Beta
@@ -743,7 +745,44 @@ Analogamente calcoliamo l'esposizione di ogni titolo ai fattori di rischio
 
 Possiamo notare che in tutti e 6 i titoli il fattore di rischio maggiore é \textbf{mkt} che corrisponde al mercato
 
+\section{Calcoliamo il rendimento atteso annuo}
+Per calcolare i rendimenti attesi dobbiamo utilizzare i dati di Fama-French
+\begin{lstlisting}
+    risk_free = factor_df['rf'].mean()
+    market_prem = factor_df['mkt'].mean()
+\end{lstlisting}
+
+\noindent\textbf{Risk Free Rate}:  0.0005433333333333336
+
+\noindent\textbf{Market Premium}:  0.010717499999999998
+
+Definiamo la seguente funzione per calcolare i rendimenti attesi tra un anno
+\begin{lstlisting}
+    def expectedReturn(beta):
+        return (risk_free + beta*(market_prem - risk_free)) * 12
+\end{lstlisting}
+Usiamo i beta calcolati in precedenza per calcolare i valori
+\begin{lstlisting}
+    NFLXexpectedReturns = expectedReturn(betaNFLX)
+    METAexpectedReturns = expectedReturn(betaMETA)
+    GSexpectedReturns = expectedReturn(betaGS)
+    CexpectedReturns = expectedReturn(betaC)
+    KOexpectedReturns = expectedReturn(betaKO)
+    PEPexpectedReturns = expectedReturn(betaPEP)
+    expectedReturns = pd.DataFrame({'NFLX': NFLXexpectedReturns, 'META': METAexpectedReturns, 'GS': GSexpectedReturns, 'C': CexpectedReturns, 'KO': KOexpectedReturns, 'PEP': PEPexpectedReturns}, index = ['Expected Returns'])
+\end{lstlisting}
+
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &      NFLX &      META &        GS &        C &        KO &       PEP \\
+\midrule
+Expected Returns &  0.147454 &  0.157226 &  0.153596 &  0.17117 &  0.083867 &  0.088875 \\
+\bottomrule
+\end{tabular}
+
+
 \chapter{Creazione di un portafoglio}
+\section{Simulazione del portafogli con metodo Monte Carlo}
 Creiamo ora un portafoglio composto dalle nostre 6 azioni. Quindi per prima cosa prendiamo i dati e calcoliamo alcune formule:
 \begin{lstlisting}[language=python]
     N_PORTFOLIOS = 10 ** 5
@@ -830,56 +869,205 @@ Ora possiamo trovare due portafogli importanti, il primo é quello costituito pe
     Weights
     NFLX: 0.61% META: 15.44% GS: 7.14% C: 5.23% KO: 27.08% PEP: 44.50% 
 \end{lstlisting}
-
-Ora vediamo invece un'altro modo per la costruzione di un portafogli, tramite una costruzione per percentuale di rischio.
-
+\section{Creazione di portafogli con metodo analitico}
+\subsection{Rendimenti passati}
+Procediamo ora con la costruzione di un portafogli con metodo analitico.
+Per prima cosa scarichiamo i dati mensili dei nostri titoli e dello strumento risk free SPY:
 \begin{lstlisting}[language=python]
-    import cvxpy as cp
-    avg_returns = avg_returns.values
-    cov_mat = cov_mat.values
-
-    weights = cp.Variable(n_assets)
-    gamma = cp.Parameter(nonneg=True)
-    portf_rtn_cvx = avg_returns * weights 
-    portf_vol_cvx = cp.quad_form(weights, cov_mat)
-    objective_function = cp.Maximize(portf_rtn_cvx - gamma * portf_vol_cvx)
-    problem = cp.Problem(objective_function, 
-                         [cp.sum(weights) == 1, weights >= 0])
+    tickers = ['NFLX', 'META', 'GS', 'C', 'KO', 'PEP', 'SPY']
+    data = yf.download(tickers, start, end, interval='1mo')
 \end{lstlisting}
-
-Ora creiamo le percentuali del portafoglio:
-
+Quindi prendiamo i primi 108 mesi e costruiamo un portafoglio basato sui rendimenti passti. In particolare usando le matrici di covarianza e di correlazione
 \begin{lstlisting}[language=python]
-    N_POINTS = 25
-    portf_rtn_cvx_ef = np.zeros(N_POINTS)
-    portf_vol_cvx_ef = np.zeros(N_POINTS)
-    weights_ef = []
-    gamma_range = np.logspace(-3, 3, num=N_POINTS)
+    data = data[:108]
+    returns = data['Adj Close'].pct_change().dropna()
     
-    for i in range(N_POINTS):
-        gamma.value = gamma_range[i]
-        problem.solve()
-        portf_vol_cvx_ef[i] = cp.sqrt(portf_vol_cvx).value
-        portf_rtn_cvx_ef[i] = portf_rtn_cvx.value
-        weights_ef.append(weights.value)
+    number_of_portfolios = 40000
+    
+    rf = returns['SPY'].mean() * 12
+    returns.drop('SPY', axis = 1, inplace = True)
+    means = returns.mean() * 12
+    
+    mat_cov = returns.cov()*12
+    
+    mat_corr = returns.corr()
+    
+    
+    portfolio_returns = []
+    portfolio_risks = []
+    sharpe_ratios = []
+    portfolio_weights = []
+    
+    for portfolio in range(number_of_portfolios):
+        weights = np.random.random_sample(len(returns.columns))
+        weights =np.round((weights / np.sum(weights)), 3)
+        portfolio_weights.append(weights)
+        annualized_return = np.sum(means * weights)
+        portfolio_returns.append(annualized_return)
+        portfolio_variance = np.dot(weights.T, np.dot(mat_cov, weights))
+        portfolio_standard_deviation = np.sqrt(portfolio_variance)
+        portfolio_risks.append(portfolio_standard_deviation)
+        sharpe_ratio = (annualized_return - rf) / portfolio_standard_deviation
+        sharpe_ratios.append(sharpe_ratio)
+    
+    
+    portfolio_returns = np.array(portfolio_returns)
+    portofolio_risks = np.array(portfolio_risks)
+    sharpe_ratios = np.array(sharpe_ratios)
+    
+    portfolio_metrics = [portfolio_returns, portfolio_risks, sharpe_ratios, portfolio_weights]
+    portfolios_df = pd.DataFrame(portfolio_metrics).T
+    portfolios_df.columns = ['Return', 'Risk', 'Sharpe', 'Weights']
+    
+    min_risk = portfolios_df.iloc[portfolios_df['Risk'].astype(float).idxmin()]
+    highest_return = portfolios_df.iloc[portfolios_df['Return'].astype(float).idxmax()]
+    highest_sharpe = portfolios_df.iloc[portfolios_df['Sharpe'].astype(float).idxmax()]
 \end{lstlisting}
-
-E mostriamo a video il risultato:
+Per mostrare il risultato usiamo il seguente codice:
 \begin{lstlisting}[language=python]
-    weights_df = pd.DataFrame(weights_ef, 
-                              columns=RISKY_ASSETS, 
-                              index=np.round(gamma_range, 3))
-    ax = weights_df.plot(kind='bar', stacked=True) 
-    ax.set(title='Weights allocation per risk-aversion level',
-           xlabel=r'$\gamma$', 
-           ylabel='weight')
-    ax.legend(bbox_to_anchor=(1,1))
-    ax.figure.set_size_inches(16, 16)
-    
+    plt.figure(figsize = (10,5))
+    plt.scatter(portfolio_risks, portfolio_returns, 
+               c = (portfolio_returns - rf)/ portfolio_risks)
+    plt.title('Portfolio optimization - Past returns', fontsize = 20)
+    plt.xlabel('Volatility', fontsize = 18)
+    plt.ylabel('Return', fontsize = 18)
+    plt.xticks(fontsize = 15)
+    plt.yticks(fontsize = 15)
+    plt.colorbar(label = 'Sharpe ratio')
     plt.show()
 \end{lstlisting}
 
-\includegraphics[width=0.6\textwidth, center]{portafogliPerRischio.png}
+\includegraphics[width=1\textwidth, center]{portafogliPast.png}
+
+Da questi dati otteniamo i seguenti risultati:
+
+\textbf{Lowest risk}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                       20599 \\
+\midrule
+Return  &                                    0.148689 \\
+Risk    &                                    0.136418 \\
+Sharpe  &                                   -0.083582 \\
+Weights &  [0.017, 0.083, 0.312, 0.086, 0.023, 0.478] \\
+\bottomrule
+\end{tabular}
+
+\textbf{Highest return}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                      25629 \\
+\midrule
+Return  &                                   0.435404 \\
+Risk    &                                   0.338331 \\
+Sharpe  &                                   0.813738 \\
+Weights &  [0.066, 0.005, 0.031, 0.209, 0.659, 0.03] \\
+\bottomrule
+\end{tabular}
+
+\textbf{Highest Sharpe ratio}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                        1394 \\
+\midrule
+Return  &                                    0.420549 \\
+Risk    &                                    0.315616 \\
+Sharpe  &                                    0.825237 \\
+Weights &  [0.009, 0.056, 0.022, 0.265, 0.586, 0.061] \\
+\bottomrule
+\end{tabular}
+
+\subsection{Rendimenti attesi}
+
+Analogamente prendiamo i valori calcolati nel punto 5 dei rendimenti attesi e usiamo per creare il portafogli:
+\begin{lstlisting}[language=python]
+    d = {'NFLX': NFLXexpectedReturns, 'META': METAexpectedReturns, 'GS': GSexpectedReturns, 'C': CexpectedReturns, 'KO': KOexpectedReturns, 'PEP': PEPexpectedReturns}
+    means_exp = pd.Series(data=d, index=['NFLX', 'META', 'GS', 'C', 'KO', 'PEP'])
+\end{lstlisting}
+Procediamo come fatto in precedenza alla creazione del portafogli
+\begin{lstlisting}[language=python]
+    portfolio_returns = []
+    portfolio_risks = []
+    sharpe_ratios = []
+    portfolio_weights = []
+    rf_exp = 0.02
+    target = 0.06
+    
+    for portfolio in range(number_of_portfolios):
+        weights = np.random.random_sample(len(returns.columns))
+        weights =np.round((weights / np.sum(weights)), 3)
+        portfolio_weights.append(weights)
+        annualized_return = np.sum(means_exp * weights)
+        portfolio_returns.append(annualized_return)
+        portfolio_variance = np.dot(weights.T, np.dot(mat_cov, weights))
+        portfolio_standard_deviation = np.sqrt(portfolio_variance)
+        portfolio_risks.append(portfolio_standard_deviation)
+        sharpe_ratio = (annualized_return - rf_exp) / portfolio_standard_deviation
+        sharpe_ratios.append(sharpe_ratio)
+    
+    portfolio_returns = np.array(portfolio_returns)
+    portofolio_risks = np.array(portfolio_risks)
+    sharpe_ratios = np.array(sharpe_ratios)
+    
+    
+    portfolio_metrics = [portfolio_returns, portfolio_risks, sharpe_ratios, portfolio_weights]
+    portfolios_df = pd.DataFrame(portfolio_metrics).T
+    portfolios_df.columns = ['Return', 'Risk', 'Sharpe', 'Weights']
+    
+    min_risk = portfolios_df.iloc[portfolios_df['Risk'].astype(float).idxmin()]
+    highest_return = portfolios_df.iloc[portfolios_df['Return'].astype(float).idxmax()]
+    highest_sharpe = portfolios_df.iloc[portfolios_df['Sharpe'].astype(float).idxmax()]
+\end{lstlisting}
+
+\includegraphics[width=1\textwidth, center]{portafogliExpect.png}
+
+Con i seguenti risulati:
+
+\textbf{Lowest risk}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                       20599 \\
+\midrule
+Return  &                                    0.148689 \\
+Risk    &                                    0.136418 \\
+Sharpe  &                                   -0.083582 \\
+Weights &  [0.017, 0.083, 0.312, 0.086, 0.023, 0.478] \\
+\bottomrule
+\end{tabular}
+
+\textbf{Highest return}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                      25629 \\
+\midrule
+Return  &                                   0.435404 \\
+Risk    &                                   0.338331 \\
+Sharpe  &                                   0.813738 \\
+Weights &  [0.066, 0.005, 0.031, 0.209, 0.659, 0.03] \\
+\bottomrule
+\end{tabular}
+
+\textbf{Highest Sharpe ratio}
+
+\begin{tabular}{ll}
+\toprule
+{} &                                        1394 \\
+\midrule
+Return  &                                    0.420549 \\
+Risk    &                                    0.315616 \\
+Sharpe  &                                    0.825237 \\
+Weights &  [0.009, 0.056, 0.022, 0.265, 0.586, 0.061] \\
+\bottomrule
+\end{tabular}
+
+
+\section{Calcolo dei beta e dei rendimenti dei portafogli}
+
 Ora invece procediamo con l'analisi delle performance dei portafogli che abbiamo costruito, in particolare confontandoli con il mercato e con un portafoglio costituito con i pesi equamente distribuiti, nel seguente modo:  \(\frac{1}{\text{number of assets}}\). Quindi per prima cosa riprendiamoci il valore del mercato scaricato in precedenza e calcoliamone i ritorni: \lstinline{benchmark = marketCloses['^GSPC'].pct_change().dropna()}. Ora tramite la libreria \lstinline{pyfolio} possiamo avere molti dati e grafici direttamente passando le serie, quindi procediamo con l'installazione e l'importo. (Da notare che la libreria originale é stata sostituita con la versione \lstinline{reloaded}, in quanto non piú supportata)
 \begin{lstlisting}
     pip install pyfolio-reloaded
