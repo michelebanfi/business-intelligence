@@ -48,7 +48,7 @@
 \section{Titoli}
 I titoli scelti per questo progetto sono i seguenti:
 
-\noindent Settore tecnologico
+\noindent \underline{Settore tecnologico}
 
 Netflix, Inc. (\textbf{NFLX})
 
@@ -56,7 +56,7 @@ Meta Platforms, Inc. (\textbf{META})
 
 \noindent La scelta di Netflix é stata basata sulle notizie di questi ultimi anni della perdita di utenti e del raggiungimento di utenti massimi che Netflix ha riscontrato e il conseguente calo del titolo sul mercato. Mentre Meta é stata presa in considerazione per il recente cambio di brand e nome, da Facebook a Meta, successivo al lancio del Metaverso
 
-\noindent Settore finanziario
+\noindent \underline{Settore finanziario}
 
 The Goldman Sachs Group, Inc. (\textbf{GS})
 
@@ -64,7 +64,7 @@ Citigroup Inc. (\textbf{C})
 
 \noindent Le scelte di queste due aziende sono dovuto al loro andamento dopo un calo, infatti Goldman Sachs, dopo il calo del covid si é subito ripresa e ha raddoppiato il suo valore in meno di un anno. Mentre Citigroup dopo la crisi finanziaria del 2008 non ha mai raggiunto di nuovo i valori che aveva precedentemente
 
-\noindent Settore consumer defensive
+\noindent \underline{Settore consumer defensive}
 
 The Coca-Cola Company (\textbf{KO})
 
@@ -140,13 +140,21 @@ Per calcolare il rendimento \textbf{composto} e \textbf{cumulato annuale} dobbia
 Li raggruppiamo e li salviamo in \lstinline{marketY}.
 Dopodiché possiamo procedere con il calcolo dei \textbf{rendimenti cumulati annui} e quello dei \textbf{rendimenti composti annui}:
 \begin{lstlisting}[language=python]
-    #Rendimento cumulato dei nostri titoli
-    marketY2 = marketY.pct_change(1)
-    marketY2 = marketY2.dropna()
-    marketY3 = np.cumprod(marketY2 + 1)
-
-    #Rendimento composto annuale NFLX
-    rcoNFLXy = ((marketY['NFLX'][-1]/marketY['NFLX'][0])**(1/marketY['NFLX'].count()) - 1) *    100
+    #Rendimento cumulato annuale
+    rcuNFLXy = marketY['NFLX'].iat[-1] / marketY['NFLX'].iat[0]
+    rcuMETAy = marketY['META'].iat[-1] / marketY['META'].iat[0]
+    rcuGSy = marketY['GS'].iat[-1] / marketY['GS'].iat[0]
+    rcuCy = marketY['C'].iat[-1] / marketY['C'].iat[0]
+    rcuKOy = marketY['KO'].iat[-1] / marketY['KO'].iat[0]
+    rcuPEPy = marketY['PEP'].iat[-1] / marketY['PEP'].iat[0]
+    
+    #Rendimento composto annuale
+    rcoNFLXy = (rcuNFLXy ** (1/10)) - 1
+    rcoMETAy = (rcuMETAy ** (1/10)) - 1
+    rcoGSy = (rcuGSy ** (1/10)) - 1
+    rcoCy = (rcuCy ** (1/10)) - 1
+    rcoKOy = (rcuKOy ** (1/10)) - 1
+    rcoPEPy = (rcuPEPy ** (1/10)) - 1
 \end{lstlisting}
 Applichiamo questo procedimento per tutti i titoli.
 
@@ -169,7 +177,8 @@ Date       &            &           &           &           &           &       
 Usiamo le seguenti formule per calcolarci i \textbf{rendimenti semplici} e \textbf{logaritmici}
 \begin{lstlisting}[language=python]
     #Rendimento semplice
-    rsNFLX = NFLX['Adj Close'] / NFLX['Adj Close'].shift(1)
+    rsNFLX = NFLX['Adj Close'].pct_change()
+    
     #Rendimento logaritmico
     rlNFLX = np.log(NFLX['Adj Close'] / NFLX['Adj Close'].shift(1))
 \end{lstlisting}
@@ -245,7 +254,8 @@ Ora procediamo con il calcolo dei seguenti dati:
 \item Deviazione standard
 \item Asimmetria
 \item Curtosi
-Per calcolare i dati usiamo le seguenti funzioni sulle serie:
+
+\noindent Per calcolare i dati usiamo le seguenti funzioni sulle serie:
 \begin{lstlisting}[language=python]
     #NFLX
     meanNFLX = round(rlNFLX.mean(), 4)
@@ -267,17 +277,31 @@ Skewness           &  -0.4118 &  -1.1173 & -0.1999 &  -0.4763 &  -0.8931 &  -0.5
 Kurtosis           &  31.0142 &  27.8449 &  9.8418 &  14.9718 &  10.6779 &  23.7351 \\
 \bottomrule
 \end{tabular}
-
+\\*
+\\*
 \noindent Il titolo con il rendimento piú alto é Netflix che ha una media di \num{0.0013} mentre quello con il rendimento piú basso é Citigroup con \num{0.0002}.
-Mentre per quanto riguarda la deviazione standard, il titolo piú alto é sempre Netflix con \num{0.03} mentre quelli piú bassi sono Coca-Cola e Pepsi con \num{0.0115} [...]
+Mentre per quanto riguarda la deviazione standard, il titolo piú alto é sempre Netflix con \num{0.03} mentre quelli piú bassi sono Coca-Cola e Pepsi con \num{0.0115}, infatti piú avanti vedremo come Pepsi avrá una composizione importante nei portafogli che creeremo.
 \section{Varianza e covarianza}
-Calcoliamo ora la matrice di covarianza tra i nostri titoli con le seguenti funzioni:
+Prendiamo la varianza dai valori precedentemente calcolati:
+
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &    NFLX &    META &      GS &       C &      KO &     PEP \\
+\midrule
+Variance &  0.0009 &  0.0006 &  0.0003 &  0.0004 &  0.0001 &  0.0001 \\
+\bottomrule
+\end{tabular}
+\\*
+\\*
+E ora calcoliamo la matrice di covarianza tra i nostri titoli con le seguenti funzioni:
 \begin{lstlisting}[language=python]
     #Covariance Matrix
     covariance = rlMarket.cov().iloc[0,1]
     covarianceMatrix  = rlMarket.cov()
 \end{lstlisting}
-Che ci restituiscono per la covarianza: \num{0.0003}, mentre per la matrice:
+\\*
+\\*
+Che ci restituisce la matrice:
 
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -291,7 +315,8 @@ KO   &  0.000047 &  0.000062 &  0.000085 &  0.000102 &  0.000131 &  0.000096 \\
 PEP  &  0.000068 &  0.000082 &  0.000084 &  0.000092 &  0.000096 &  0.000132 \\
 \bottomrule
 \end{tabular}
-
+\\*
+\\*
 Procediamo con il calcolo della matrice di correlazione con il seguente codice:
 \begin{lstlisting}
     correlation = rlMarket.corr()
@@ -301,8 +326,7 @@ Procediamo con il calcolo della matrice di correlazione con il seguente codice:
 \end{lstlisting}
 
 \includegraphics[width=0.5\textwidth, center]{correlationMatrix.png}
-Possiamo notare che i titoli dello stesso settore sono molto correlati, in particolare GS e C piú degli altri
-
+Possiamo notare che i titoli dello stesso settore sono molto correlati, in particolare GS e C piú degli altri.
 Proseguiamo quindi con la costruzione degli scatter plot
 \begin{lstlisting}
     plt.figure(figsize=(15,15))
@@ -312,8 +336,9 @@ Proseguiamo quindi con la costruzione degli scatter plot
 Con la seguente immagine:
 
 \includegraphics[width=0.5\textwidth, center]{scatterPlot.png}
-[...]
+Che ci mostra lo scatter plot della correlazione tra i titoli. E come abbiamo visto in precedenza, GS e C sono quelli piú contenuti nel grafico.
 \chapter{Analisi di previsione}
+\section{Preparazione dei dati}
 Per fare l'analisi di previsione ho deciso di usare una Support Vector Machine (SVM). Per prima cosa prendiamo i dati e li raggruppiamo mensilmente con il seguente codice:
 \begin{lstlisting}[language=python]
     NFLXm = NFLX.groupby(pd.Grouper(freq='M')).last()
@@ -335,7 +360,7 @@ Adesso possiamo procedere alla creazione delle "prediction". Quello che vogliamo
     y = np.array(df['prediction'])
     y = y[:-forecast_out]
 \end{lstlisting}
-
+\section{Train, test e validation}
 Ora andiamo avanti dividendo il nostro dataset in due, uno di allenamento e uno di test. In particolare le dimesioni dei due dataset sono 80 e 30 rispettivamente. Poi alleniamo la nostra SVM con il metodo \lstinline{.fit()} e otteniamo un primo valore che è quello di confidenza che è pari a \num{0.5844}
 
 \begin{lstlisting}[language=python]
@@ -347,7 +372,7 @@ Ora andiamo avanti dividendo il nostro dataset in due, uno di allenamento e uno 
     print("svm confidence: ", round(svm_confidence, 4))
 \end{lstlisting}
 
-Prendiamo gli ultimi 10 mesi dei nostri prezzi per confrontare le previsioni rispetto ai valori effettivi e mostriamoli a grafico
+Prendiamo gli ultimi 10 mesi dei nostri prezzi per confrontare le previsioni rispetto ai valori effettivi e mostriamoli a grafico con il seguente codice:
 
 \begin{lstlisting}[language=python]
     #prendiamo gli ultimi 10 mesi per fare la previsione
@@ -365,7 +390,56 @@ Prendiamo gli ultimi 10 mesi dei nostri prezzi per confrontare le previsioni ris
     plt.legend()
     plt.show()
 \end{lstlisting}
-\includegraphics[width=0.6\textwidth, center]{svm.png}
+Sul Notebook é presente una funzione \lstinline{svmPrediction(df, ticker)} che incorpora il codice soprastante e ci permette di ridurre il codice da scrivere per ogni titolo. Ottenendo i seguenti risultati:
+
+\subsection{NFLX SVM Prediction}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{NFLXsvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.5144 \\ \textbf{MSE}:  43.83261079063793}
+\end{figure}
+
+\subsection{META SVM Prediction}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{METAsvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.5444 \\ \textbf{MSE}:  26.60523815960264}
+\end{figure}
+
+\subsection{GS SVM Prediction}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{GSsvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.724 \\ \textbf{MSE}:  58.79589532315476}
+\end{figure}
+
+\subsection{C SVM Prediction}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{Csvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.8028 \\ \textbf{MSE}:  2.673238433919416}
+\end{figure}\newpage
+
+\subsection{KO SVM Prediction}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{KOsvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.9208 \\ \textbf{MSE}:  1.518446810530804}
+\end{figure}
+
+\subsection{PEP SVM Prediction}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth, center]{PEPsvm.png}
+    \caption{\\ \textbf{SVM confidence}:  0.8834 \\ \textbf{MSE}:  17.197596116792496}
+\end{figure}
+
+%\includegraphics[width=0.6\textwidth, center]{svm.png}
 
 \chapter{Strategia di trading e backtesting}
 Come strategia di trading ho deciso di adottare l'indicatore \textbf{MACD} il cui acronimo sta per \textbf{Moving Average Convergence Divergence} che é un trend-following momentum indicator. Per calcolare questo indicatore sono necessarie tre Medie Mobili Esponenziali (\textbf{EMA}). La prima media mobile, quella più veloce, viene calcolata a 12 periodi; quella più lenta invece è a 26 periodi. Queste due medie mobili vengono sottratte fra loro per calcolarne la differenza che sarà quindi rappresentata graficamente da una sola linea (MACD Line). Per generare segnali è stata introdotta la terza linea, ovvero una media mobile esponenziale, solitamente a 9 periodi, della precedente differenza (Signal Line). Per generare un segnale di acquisto lungo, la MACD Line deve incrociare al rialzo la Signal Line.
@@ -450,6 +524,7 @@ Mostriamo graficamente ora i dati con il seguente codice in 4 diversi grafici:
 \end{lstlisting}
 
 \includegraphics[width=1\textwidth, center]{MACD.png}
+Possiamo notare che la nostra strategia ha dei ritorni molto piú alti rispetto a una strategia buy-and-hold e rispetto ad un semplice incrocio di medie mobili.
 
 \chapter{Capital Asset Pricing Model}
 Per prima cosa scarichiamo i dati dell'indice S&P 500 insieme ai titoli scelti in precedenza e sistemiamo il DataFrame
@@ -940,8 +1015,9 @@ Per mostrare il risultato usiamo il seguente codice:
 \includegraphics[width=1\textwidth, center]{portafogliPast.png}
 
 Da questi dati otteniamo i seguenti risultati:
-
-\textbf{Lowest risk}
+\\*
+\\*
+\textbf{Lowest risk:}
 
 \begin{tabular}{ll}
 \toprule
@@ -953,8 +1029,9 @@ Sharpe  &                                   -0.083582 \\
 Weights &  [0.017, 0.083, 0.312, 0.086, 0.023, 0.478] \\
 \bottomrule
 \end{tabular}
-
-\textbf{Highest return}
+\\*
+\\*
+\textbf{Highest return:}
 
 \begin{tabular}{ll}
 \toprule
@@ -966,8 +1043,9 @@ Sharpe  &                                   0.813738 \\
 Weights &  [0.066, 0.005, 0.031, 0.209, 0.659, 0.03] \\
 \bottomrule
 \end{tabular}
-
-\textbf{Highest Sharpe ratio}
+\\*
+\\*
+\textbf{Highest Sharpe ratio:}
 
 \begin{tabular}{ll}
 \toprule
@@ -1023,45 +1101,49 @@ Procediamo come fatto in precedenza alla creazione del portafogli
 \end{lstlisting}
 
 \includegraphics[width=1\textwidth, center]{portafogliExpect.png}
+\newpage
 
 Con i seguenti risulati:
 
-\textbf{Lowest risk}
-
+\textbf{Lowest risk:}
+\\*
+\\*
 \begin{tabular}{ll}
 \toprule
-{} &                                       20599 \\
+{} &                                      1245 \\
 \midrule
-Return  &                                    0.148689 \\
-Risk    &                                    0.136418 \\
-Sharpe  &                                   -0.083582 \\
-Weights &  [0.017, 0.083, 0.312, 0.086, 0.023, 0.478] \\
+Return  &                                  0.112642 \\
+Risk    &                                  0.136284 \\
+Sharpe  &                                  0.679771 \\
+Weights &  [0.0, 0.126, 0.221, 0.012, 0.045, 0.597] \\
 \bottomrule
 \end{tabular}
-
-\textbf{Highest return}
+\\*
+\\*
+\textbf{Highest return:}
 
 \begin{tabular}{ll}
 \toprule
-{} &                                      25629 \\
+{} &                                       23937 \\
 \midrule
-Return  &                                   0.435404 \\
-Risk    &                                   0.338331 \\
-Sharpe  &                                   0.813738 \\
-Weights &  [0.066, 0.005, 0.031, 0.209, 0.659, 0.03] \\
+Return  &                                    0.162993 \\
+Risk    &                                    0.241265 \\
+Sharpe  &                                    0.592681 \\
+Weights &  [0.113, 0.304, 0.009, 0.561, 0.006, 0.007] \\
 \bottomrule
 \end{tabular}
-
-\textbf{Highest Sharpe ratio}
+\\*
+\\*
+\textbf{Highest Sharpe ratio:}
 
 \begin{tabular}{ll}
 \toprule
-{} &                                        1394 \\
+{} &                                        8006 \\
 \midrule
-Return  &                                    0.420549 \\
-Risk    &                                    0.315616 \\
-Sharpe  &                                    0.825237 \\
-Weights &  [0.009, 0.056, 0.022, 0.265, 0.586, 0.061] \\
+Return  &                                    0.150498 \\
+Risk    &                                    0.150188 \\
+Sharpe  &                                    0.868895 \\
+Weights &  [0.037, 0.062, 0.605, 0.195, 0.015, 0.087] \\
 \bottomrule
 \end{tabular}
 
@@ -1092,6 +1174,7 @@ Beta &  1.04 &  0.92 &  0.73 \\
 \bottomrule
 \end{tabular}
 
+\newpage
 \begin{figure}[h]
 
 \begin{subfigure}{0.5\textwidth}
@@ -1109,11 +1192,24 @@ Beta &  1.04 &  0.92 &  0.73 \\
 \caption{Volatility}
 \label{fig:subim3}
 \end{subfigure}
+\begin{subfigure}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{pReturnTearSheet.jpeg}
+\caption{Max past returns}
+\label{fig:subim4}
+\end{subfigure}
+\begin{subfigure}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{eReturnTearSheet.jpeg}
+\caption{Max expected returns}
+\label{fig:subim5}
+\end{subfigure}
 
 \caption{Ritorni di portafogli con pesi diversi}
 \label{fig:image2}
 \end{figure}
 
+"Max past returns" e "Max expected returns" corrispondono ai portafogli creati in maniera analitica prendendo quelli con i ritorni piú alti
+
 \chapter{Conclusioni}
+Dopo aver fatto una attenta analisi dei titoli, possiamo constatare che la scelta dei titoli non puó essere fatta in maniera casuale, ma appunto studiandone il rendimento nel tempo. Possiamo infatti notare che nella creazione dei portafogli, tramite tutti i metodi, a titoli come Netflix e Meta  vengono riservati sempre pesi molto piccoli.
 \tableofcontents
 \end{document}
